@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <title>Barcodes</title>
+    <!--This code was created by Teg Louis. It is to simulate random barcodes.
+        A computer program will take a screenshot, and analyze the barcodes.
+        Typically, barcode scanners only use infrared light and they only analyze a single barcode at a time.
+        The goal is to have this be able to analyze bar codes on an entire side of an aisle with a single photograph.-->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="description" content="This is a bar code animation.">
+
+    <link rel="apple-touch-icon" sizes="180x180" href="romogi-favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="romogi-favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="romogi-favicons/favicon-16x16.png">
+    <link rel="manifest" href="romogi-favicons/site.webmanifest">
+    <link rel="shortcut icon" href="romogi-favicons/favicon.ico" type="image/x-icon" />
+</head>
+<style>
+html, body {
+    font-family: 'Source Sans Pro', sans-serif;
+    height: 100%; /* changed to viewport height to ensure full screen height */
+    width: 100%; /* changed to viewport width to ensure full screen width */
+    overflow: hidden;
+    background-color: lightgray;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+}
+
+</style>
+<body>
+</body>
+<script>
+
+function decodePattern(pattern, colorPair) {
+    return pattern.map(p => {
+        if (p === "space") return colorPair[1].toString();
+        if (p === "bar") return colorPair[0].toString();
+        return p;  // just a fallback, ideally shouldn't be hit
+    });
+}
+
+
+//NOTE: Because of the high contrast in colors, the Mach band effect will take place.
+function drawBarcode() {
+
+    // 1. Create a new canvas element
+    let canvas = document.createElement('canvas');
+    canvas.style.position = "absolute";
+    let ctx = canvas.getContext('2d');
+
+// Parameters
+const hasText = Math.random() < 0.5;
+const hasBorder = Math.random() < 0.5;
+const hasGap = Math.random() < 0.5;
+const codeLength = Math.floor(Math.random() * 7) + 8;
+const hasGuardCharacters = (Math.random() < 0.5) && (codeLength % 2 === 0);
+const fontSize = Math.floor(Math.random() * 11) + 10;  // Random value between 10 and 20
+const barcodeHeight = Math.floor(Math.random() * 151) + 50;  // Random value between 50 and 150 for base barcode height
+const barWidth = Math.floor(Math.random() * (4 - 1 + 1)) + 1;
+
+const borderThickness = Math.floor(Math.random() * 8) + 1;  // Random value between 1 and 8
+
+// Height modification for guard characters
+const guardHeightFactor = hasGuardCharacters ? 1.1 + Math.random() * 0.4 : 1;
+
+//These color combinations have the largest possible contrast, a.k.a. largest Euclidean distance in the RGB color space.
+//Thus, it makes image processing easier.
+const allowedColorCombinations = [
+                                ["rgb(0,0,0)", "rgb(255,255,255)"],
+                                ["rgb(255,0,0)", "rgb(0,255,255)"],
+                                ["rgb(0,255,0)", "rgb(255,0,255)"],
+                                ["rgb(0,0,255)", "rgb(255,255,0)"],
+                                ["rgb(255,255,255)", "rgb(0,0,0)"],
+                                ["rgb(0,255,255)", "rgb(255,0,0)"],
+                                ["rgb(255,0,255)", "rgb(0,255,0)"],
+                                ["rgb(255,255,0)", "rgb(0,0,255)"]
+                            ]; 
+
+const patterns = {
+    0: ["space", "space", "space", "bar", "bar", "space", "bar"],
+    1: ["space", "space", "bar", "bar", "space", "space", "bar"],
+    2: ["space", "space", "bar", "space", "space", "bar", "bar"],
+    3: ["space", "bar", "bar", "bar", "bar", "space", "bar"],
+    4: ["space", "bar", "space", "space", "space", "bar", "bar"],
+    5: ["space", "bar", "bar", "space", "space", "space", "bar"],
+    6: ["space", "bar", "space", "bar", "bar", "bar", "bar"],
+    7: ["space", "bar", "bar", "bar", "space", "bar", "bar"],
+    8: ["space", "bar", "bar", "space", "bar", "bar", "bar"],
+    9: ["space", "space", "space", "bar", "space", "bar", "bar"]
+};
+
+const centerCharacterColors = ["space", "bar", "space", "bar", "space"];
+const endCharacterColors = ["bar", "space", "bar"];
+
+const randomColorPair = allowedColorCombinations[Math.floor(Math.random() * allowedColorCombinations.length)];
+
+ctx.shadowColor = randomColorPair[0].toString();
+ctx.shadowBlur = 0;  // You can adjust this value to your liking.
+ctx.shadowOffsetX = 0;  // You can adjust if you want a horizontal offset.
+ctx.shadowOffsetY = 0;  // You can adjust if you want a vertical offset.
+//ctx.lineWidth = 15;  // This is quite large, but for testing purposes
+
+
+function drawPattern(pattern, xOffset, yOffset, digit, heightFactor = 1) {
+    const width = barWidth;
+    const currentHeight = barcodeHeight * heightFactor;
+    
+    const decodedPattern = decodePattern(pattern, randomColorPair);
+
+    for (const color of decodedPattern) {
+        ctx.fillStyle = color;
+        ctx.fillRect(xOffset, yOffset, width, currentHeight);
+        xOffset += width;
+    }
+
+    if (hasText && digit !== '') {
+        ctx.fillStyle = randomColorPair[0].toString();
+        ctx.font = `${fontSize}px Arial`;
+        
+        const textWidth = ctx.measureText(digit).width;
+        ctx.fillText(digit, xOffset - (pattern.length * width + textWidth) / 2, yOffset + currentHeight + 20);
+    }
+
+    return pattern.length * width;
+}
+
+
+function getTotalBarcodeWidth() {
+    let width = 0;
+    for (let i = 0; i < codeLength; i++) {
+        width += patterns[i % 10].length * barWidth;
+    }
+
+    if (hasGuardCharacters) {
+        width += centerCharacterColors.length * barWidth + endCharacterColors.length * barWidth * 2;  // Multiply by 2 for both start and end guard
+    }
+
+    return width;
+}
+
+
+const barcodeWidth = getTotalBarcodeWidth();
+
+const totalHeight = barcodeHeight * guardHeightFactor + (hasText ? 30 : 0);  // Add height for text if present
+const rectHeight = totalHeight * 1.1;  // 10% padding
+
+const rectWidth = barcodeWidth * 1.1;
+
+const startingXOffset = 0;
+let xOffset = startingXOffset + (rectWidth - barcodeWidth) / 2;
+
+// Center the elements vertically
+// Recalculate the vertical center based on the new canvas height
+const verticalCenter = rectHeight/ 2;
+const barcodeTop = verticalCenter - totalHeight / 2;
+const borderTop = verticalCenter - rectHeight / 2;
+
+canvas.width = rectWidth;
+        canvas.height = rectHeight;
+
+ctx.fillStyle = randomColorPair[1].toString();
+ctx.fillRect(startingXOffset, borderTop, rectWidth, rectHeight);
+
+// Draw the border if hasBorder is true
+if (hasBorder) {
+    ctx.strokeStyle = randomColorPair[0].toString();
+    ctx.lineWidth = borderThickness;
+    ctx.strokeRect(
+        0,
+        borderTop,
+        rectWidth,
+        rectHeight
+    );
+}
+
+// Draw the end guards at the beginning
+if (hasGuardCharacters) {
+    xOffset += drawPattern(decodePattern(endCharacterColors, randomColorPair), xOffset, barcodeTop, '', guardHeightFactor);
+}
+
+for (let i = 0; i < codeLength; i++) {
+    const randomNumber = Math.floor(Math.random() * 10);
+    xOffset += drawPattern(decodePattern(patterns[randomNumber], randomColorPair), xOffset, barcodeTop, randomNumber);
+
+    if (i === Math.floor(codeLength / 2) - 1 && hasGuardCharacters) {
+        xOffset += drawPattern(decodePattern(centerCharacterColors, randomColorPair), xOffset, barcodeTop, '', guardHeightFactor);
+    }
+}
+
+
+// Draw the end guards at the end
+if (hasGuardCharacters) {
+    xOffset += drawPattern(decodePattern(endCharacterColors, randomColorPair), xOffset, barcodeTop, '', guardHeightFactor);
+}
+
+// Calculate viewport dimensions
+const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+// Calculate the allowable range for the center of the canvas
+const centerXRange = [0, viewportWidth];
+const centerYRange = [0, viewportHeight];
+
+// Generate random coordinates for the center of the canvas
+const randomCenterX = Math.floor(Math.random() * (centerXRange[1] - centerXRange[0] + 1)) + centerXRange[0];
+const randomCenterY = Math.floor(Math.random() * (centerYRange[1] - centerYRange[0] + 1)) + centerYRange[0];
+
+// Calculate the top-left coordinates based on the center position
+const topLeftX = randomCenterX - rectWidth/2;
+const topLeftY = randomCenterY -rectHeight/2;
+
+// Apply these coordinates to the canvas's position
+canvas.style.left = topLeftX + "px"; 
+canvas.style.top = topLeftY + "px";
+
+
+    // 2. Append the canvas to the document's body or another container
+    document.body.appendChild(canvas);
+
+    // 3. Return positional information for overlap checking
+    return [topLeftX, topLeftX + rectWidth, topLeftY, topLeftY + rectHeight];
+}
+
+
+
+
+let renderedBarcodes = [];
+
+// Returns true if targetRect overlaps with any rectangle in the list.
+function doesOverlap(rectangles, targetRect) {
+    for (let rect of rectangles) {
+        if (rect[0] < targetRect[1] &&
+            rect[1] > targetRect[0] &&
+            rect[2] < targetRect[3] &&
+            rect[3] > targetRect[2]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function generateMultipleBarcodes() {
+    const numBarcodes = Math.floor(Math.random() * 10) + 1;
+
+    for(let i = 0; i < numBarcodes; i++) {
+        let barcodeBounds;
+        let overlap = true;
+        
+        // Try a maximum of 10 times to place the barcode. 
+        for(let tries = 0; overlap && tries < 20; tries++) {
+            barcodeBounds = drawBarcode();
+            overlap = doesOverlap(renderedBarcodes, barcodeBounds);
+            
+            if (overlap) {
+                // Remove the last drawn barcode from the DOM since it overlaps
+                document.body.removeChild(document.body.lastChild);
+            }
+        }
+        
+        if (!overlap) {
+            renderedBarcodes.push(barcodeBounds);
+        }
+    }
+}
+
+
+
+
+
+generateMultipleBarcodes();
+
+
+let backgroundPicture = 'https://picsum.photos/' + window.innerWidth.toString() + '/' + window.innerHeight.toString();
+document.body.style.backgroundImage = "url(" + backgroundPicture + ")";
+
+//Below three lines for changing css. is needed because sometimes so slow at rendering it doesn't fully cover otherwise. 
+document.body.style.backgroundSize = "cover"; // This will make sure it covers the entire viewport
+document.body.style.backgroundRepeat = "no-repeat"; // Prevents repeating the image
+document.body.style.backgroundPosition = "center center"; // Centers the background image
+
+document.addEventListener("click", function() {
+            window.location.reload(true);
+        }, false);
+</script>
+
+</html>
