@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Barcodes</title>
+    
+    <!--This code was created by Teg Louis. It is to simulate random barcodes.
+        A computer program will take a screenshot, and analyze the barcodes.
+        Typically, barcode scanners only use infrared light and they only analyze a single barcode at a time.
+        The goal is to have this be able to analyze bar codes on an entire side of an aisle with a single photograph.-->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="description" content="This is a bar code animation.">
+
+    <link rel="apple-touch-icon" sizes="180x180" href="romogi-favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="romogi-favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="romogi-favicons/favicon-16x16.png">
+    <link rel="manifest" href="romogi-favicons/site.webmanifest">
+    <link rel="shortcut icon" href="romogi-favicons/favicon.ico" type="image/x-icon" />
+</head>
+
+    <style>
+        .barcode,
+        .polygon {
+            position: absolute;
+            /* padding: 10%; */
+        }
+
+        html,
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            height: 100%;
+            /* changed to viewport height to ensure full screen height */
+            width: 100%;
+            /* changed to viewport width to ensure full screen width */
+            overflow: hidden;
+            background-color: lightgray;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+
+<body>
+    <script>
+
+        // Constants to define barcode size
+        const barcodeWidth = 2;
+        const barcodeHeight = 100;
+        const maxAttempts = 1000;
+        const margin = 0;
+        const maxBarcodes = 100; // Maximum number of barcodes
+
+        // Store barcode placements to check for overlap
+        let barcodePlacements = [];
+
+        // Generate a random number as barcode value
+        function generateRandomBarcodeValue() {
+            return Math.floor(Math.random() * 10000000000).toString();
+        }
+
+        // Generate a random color
+        function getRandomColor() {
+            const letters = "0123456789ABCDEF";
+            let color = "#";
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // Generate random points for polygon within the barcode area
+        function getRandomPolygonPoints(width, height) {
+            const minSides = 3;
+            const maxSides = 7;
+            const count =
+                Math.floor(Math.random() * (maxSides - minSides + 1)) + minSides; // Random number of sides between 3 and 7
+            let points = [];
+            for (let i = 0; i < count; i++) {
+                points.push({
+                    x: Math.random() * (width - 40) + 20, // Ensuring points are within the barcode area
+                    y: Math.random() * (height - 40) + 20,
+                });
+            }
+            return points;
+        }
+
+        function checkOverlap(barcodeA, barcodeB) {
+            // Get the axis projections of both barcodes
+            const projectionA = getProjection(barcodeA);
+            const projectionB = getProjection(barcodeB);
+
+            // Check for overlap on both x and y axes
+            const overlapX = doProjectionsOverlap(projectionA.x, projectionB.x);
+            const overlapY = doProjectionsOverlap(projectionA.y, projectionB.y);
+
+            // If both projections overlap on x and y axis, the barcodes overlap
+            return overlapX && overlapY;
+        }
+
+        function getProjection(barcode) {
+            const angle = (barcode.angle * Math.PI) / 180;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            // Calculate the half-diagonal
+            const halfDiagonal = Math.sqrt(
+                Math.pow(barcode.width / 2, 2) + Math.pow(barcode.height / 2, 2)
+            );
+
+            // Calculate the range of the projection on the x and y axes
+            const xProjection = halfDiagonal * (Math.abs(cos) + Math.abs(sin));
+            const yProjection = halfDiagonal * (Math.abs(cos) + Math.abs(sin));
+
+            // Calculate the actual projection ranges based on the barcode's center
+            return {
+                x: {
+                    min: barcode.x - xProjection,
+                    max: barcode.x + xProjection,
+                },
+                y: {
+                    min: barcode.y - yProjection,
+                    max: barcode.y + yProjection,
+                },
+            };
+        }
+
+        function doProjectionsOverlap(projectionA, projectionB) {
+            return !(
+                projectionA.max < projectionB.min || projectionB.max < projectionA.min
+            );
+        }
+
+        function placeBarcode() {
+            for (let i = 0; i < maxBarcodes; i++) {
+                let placed = false;
+                let barcodeBounds;
+                let overlaps;
+                for (let attempts = 0; attempts < maxAttempts; attempts++) {
+                    // Adjusted position calculation to account for barcode size
+                    const x = Math.random() * (window.innerWidth);
+                    const y = Math.random() * (window.innerHeight);
+                    const angle = Math.random() * 360;
+
+                    const barcodeCanvas = document.createElement("canvas");
+                    setupCanvas(barcodeCanvas, "barcode", x, y, angle);
+
+                    barcodeBounds = drawBarcode(barcodeCanvas, x, y, angle);
+
+                    overlaps = barcodePlacements.some((existingBarcode) =>
+                        checkOverlap(barcodeBounds, existingBarcode)
+                    );
+
+                    if (!overlaps) {
+                        const currentBound = getProjection(barcodeBounds);
+                        if (
+                            currentBound.y.min > 0 &&
+                            currentBound.x.min > 0 &&
+                            currentBound.y.max < window.innerHeight - 100 &&
+                            currentBound.x.max < window.innerWidth - 100
+                        ) {
+                            barcodePlacements.push(barcodeBounds);
+                            const polygonCanvas = document.createElement("canvas");
+                            setupCanvas(
+                                polygonCanvas,
+                                "polygon",
+                                x,
+                                y,
+                                barcodeBounds.width,
+                                barcodeBounds.height,
+                                angle
+                            );
+                            document.body.appendChild(polygonCanvas);
+                            setTimeout(() => {
+                                const max = 3;
+                                const randomPolygon = Math.floor(Math.random() * max);
+                                for (var i = 0; i < randomPolygon; i++) {
+                                    drawPolygonOnBarcode(
+                                        polygonCanvas,
+                                        getRandomColor(),
+                                        getRandomPolygonPoints(barcodeBounds.width, barcodeBounds.height - 30)
+                                    );
+                                }
+                            }, 100);
+                            placed = true;
+                            break;
+                        } else {
+                            document.body.removeChild(document.body.lastChild);
+                        }
+                    } else {
+                        document.body.removeChild(document.body.lastChild);
+                    }
+                    if (!placed) {
+                        console.error("Could not place a barcode after maximum attempts.");
+                        break;
+                    }
+                }
+
+            }
+        }
+
+        function setupCanvas(canvas, className, x, y, width, height, angle) {
+            canvas.classList.add(className);
+            canvas.style.left = `${x - 10}px`;
+            canvas.style.top = `${y - 10}px`;
+            className == "polygon" ? (canvas.width = width) : null;
+            className == "polygon" ? (canvas.height = height) : null;
+            className == "polygon"
+                ? (canvas.style.transform = angle ? `rotate(${angle}deg)` : "none")
+                : null;
+        }
+
+        // Draw a polygon on a barcode canvas
+        function drawPolygonOnBarcode(canvas, color, points) {
+            const ctx = canvas.getContext("2d");
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.closePath();
+            // Set both stroke and fill styles
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Generate and place barcodes
+        function generateAndPlaceBarcodes() {
+            let placedCount = 0;
+            while (placedCount < maxBarcodes) {
+                if (placeBarcode()) {
+                    placedCount++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Generate and place barcodes on window load
+        window.addEventListener("load", generateAndPlaceBarcodes);
+
+        window.addEventListener("click", function () {
+            window.location.reload();
+        });
+
+        function decodePattern(pattern, colorPair) {
+            return pattern.map((p) => {
+                if (p === "space") return colorPair[1].toString();
+                if (p === "bar") return colorPair[0].toString();
+                return p; // just a fallback, ideally shouldn't be hit
+            });
+        }
+
+        //NOTE: Because of the high contrast in colors, the Mach band effect will take place.
+        function drawBarcode(canvas, x, y, angle) {
+            let ctx = canvas.getContext("2d");
+
+            // Parameters
+            const hasText = true;
+            const hasBorder = Math.random() < 0.5;
+            const codeLength = Math.floor(Math.random() * 5) * 2 + 8; // This will log an even number between 8 and 16
+            const hasGap = Math.random() < 0.5;
+            const hasGuardCharacters = codeLength % 2 === 0;
+            const fontSize = 14; // Random value between 10 and 20
+            const barcodeHeight = Math.floor(Math.random() * 31) + 50 // Random value between 50 and 80 for base barcode height
+            // const barWidth = Math.floor(Math.random() * (4 - 2 + 1)) + 2;
+            const barWidth = (Math.floor(Math.random() * 17) + 13) / 10
+
+            const borderThickness = 3; // Random value between 1 and 8
+
+            // Height modification for guard characters
+            const guardHeightFactor = Math.random() < 0.5 ? 1.2 : 1.1;
+
+            //These color combinations have the largest possible contrast, a.k.a. largest Euclidean distance in the RGB color space.
+            //Thus, it makes image processing easier.
+            const allowedColorCombinations = [
+                ["rgb(0,0,0)", "rgb(255,255,255)"],
+                ["rgb(255,0,0)", "rgb(0,255,255)"],
+                ["rgb(0,255,0)", "rgb(255,0,255)"],
+                ["rgb(0,0,255)", "rgb(255,255,0)"],
+                ["rgb(255,255,255)", "rgb(0,0,0)"],
+                ["rgb(0,255,255)", "rgb(255,0,0)"],
+                ["rgb(255,0,255)", "rgb(0,255,0)"],
+                ["rgb(255,255,0)", "rgb(0,0,255)"],
+            ];
+
+            const patterns = {
+                0: ["space", "space", "space", "bar", "bar", "space", "bar"],
+                1: ["space", "space", "bar", "bar", "space", "space", "bar"],
+                2: ["space", "space", "bar", "space", "space", "bar", "bar"],
+                3: ["space", "bar", "bar", "bar", "bar", "space", "bar"],
+                4: ["space", "bar", "space", "space", "space", "bar", "bar"],
+                5: ["space", "bar", "bar", "space", "space", "space", "bar"],
+                6: ["space", "bar", "space", "bar", "bar", "bar", "bar"],
+                7: ["space", "bar", "bar", "bar", "space", "bar", "bar"],
+                8: ["space", "bar", "bar", "space", "bar", "bar", "bar"],
+                9: ["space", "space", "space", "bar", "space", "bar", "bar"],
+                10: ["space", "space", "space", "space"]
+            };
+
+            const centerCharacterColors = ["space", "bar", "space", "bar", "space"];
+            const endCharacterColors = ["bar", "space", "bar"];
+
+            const randomColorPair =
+                allowedColorCombinations[
+                Math.floor(Math.random() * allowedColorCombinations.length)
+                ];
+
+
+            ctx.shadowColor = randomColorPair[0].toString();
+            ctx.shadowBlur = 0;  // You can adjust this value to your liking.
+            ctx.shadowOffsetX = 0;  // You can adjust if you want a horizontal offset.
+            ctx.shadowOffsetY = 0;  // You can adjust if you want a vertical offset.
+            //ctx.lineWidth = 15;  // This is quite large, but for testing purposes
+
+
+            function drawPattern(pattern, xOffset, yOffset, digit, heightFactor = 1) {
+                const width = barWidth;
+                const currentHeight = barcodeHeight * heightFactor;
+                const decodedPattern = decodePattern(pattern, randomColorPair);
+
+                for (const color of decodedPattern) {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(xOffset, yOffset, width, currentHeight);
+                    xOffset += width;
+                }
+
+                if (hasText && digit !== "") {
+                    ctx.fillStyle = randomColorPair[0].toString();
+                    ctx.font = `${fontSize}px Arial`;
+
+                    const textWidth = ctx.measureText(digit).width;
+                    ctx.fillText(
+                        digit,
+                        xOffset - (pattern.length * width + textWidth) / 2,
+                        yOffset + currentHeight + 20
+                    );
+                }
+
+                return pattern.length * width;
+            }
+
+            function getTotalBarcodeWidth() {
+                let width = 0;
+                for (let i = 0; i < codeLength; i++) {
+                    width += patterns[i % 10].length * barWidth;
+                }
+
+                if (hasGuardCharacters) {
+                    width +=
+                        centerCharacterColors.length * barWidth +
+                        endCharacterColors.length * barWidth * 2 + // Multiply by 2 for both start and end guard
+                        (hasGap ? (patterns[10].length + 3) * barWidth * 2 : patterns[10].length);
+                }
+
+                return width;
+            }
+
+            const barcodeWidth = getTotalBarcodeWidth();
+
+            const totalHeight = barcodeHeight * guardHeightFactor + 30; // Add height for text if present
+            const rectHeight = totalHeight * 1.2; // 10% padding
+
+            const rectWidth = barcodeWidth * 1.1;
+
+            const startingXOffset = 0;
+            let xOffset = startingXOffset + (rectWidth - barcodeWidth) / 2;
+
+            // Center the elements vertically
+            // Recalculate the vertical center based on the new canvas height
+            const verticalCenter = rectHeight / 2;
+            const barcodeTop = verticalCenter - totalHeight / 2;
+            const borderTop = verticalCenter - rectHeight / 2;
+
+            canvas.width = rectWidth;
+            canvas.height = rectHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.transform = `rotate(${angle}deg)`;
+            ctx.fillStyle = randomColorPair[1].toString();
+            ctx.fillRect(startingXOffset, borderTop, rectWidth, rectHeight);
+
+            if (hasBorder) {
+                ctx.strokeStyle = randomColorPair[0].toString();
+                ctx.lineWidth = borderThickness;
+                ctx.strokeRect(
+                    0,
+                    borderTop,
+                    rectWidth,
+                    rectHeight
+                );
+            }
+
+            if (hasGuardCharacters) {
+                if (hasGap) {
+                    xOffset += drawPattern(
+                        decodePattern(patterns[10], randomColorPair),
+                        xOffset,
+                        barcodeTop,
+                        Math.floor(Math.random() * 10)
+                    );
+                }
+                xOffset += drawPattern(
+                    decodePattern(endCharacterColors, randomColorPair),
+                    xOffset,
+                    barcodeTop,
+                    "",
+                    guardHeightFactor
+                );
+                if (hasGap) {
+                    xOffset += drawPattern(
+                        decodePattern(endCharacterColors, randomColorPair),
+                        xOffset,
+                        barcodeTop,
+                        "",
+                        guardHeightFactor
+                    );
+                }
+            }
+
+            for (let i = 0; i < codeLength; i++) {
+                const randomNumber = Math.floor(Math.random() * 10);
+                xOffset += drawPattern(
+                    decodePattern(patterns[randomNumber], randomColorPair),
+                    xOffset,
+                    barcodeTop,
+                    randomNumber
+                );
+
+                if (i === Math.floor(codeLength / 2) - 1 && hasGuardCharacters) {
+                    xOffset += drawPattern(
+                        decodePattern(centerCharacterColors, randomColorPair),
+                        xOffset,
+                        barcodeTop,
+                        "",
+                        guardHeightFactor
+                    );
+                }
+            }
+            if (hasGuardCharacters) {
+                xOffset += drawPattern(
+                    decodePattern(endCharacterColors, randomColorPair),
+                    xOffset,
+                    barcodeTop,
+                    "",
+                    guardHeightFactor
+                );
+                if (hasGap) {
+                    xOffset += drawPattern(
+                        decodePattern(endCharacterColors, randomColorPair),
+                        xOffset,
+                        barcodeTop,
+                        "",
+                        guardHeightFactor
+                    );
+                    xOffset += drawPattern(
+                        decodePattern(patterns[10], randomColorPair),
+                        xOffset,
+                        barcodeTop,
+                        Math.floor(Math.random() * 10)
+                    );
+                }
+            }
+            // Draw the end guards at the end
+
+            document.body.appendChild(canvas);
+            return { x: x, y: y, width: rectWidth, height: rectHeight, angle: angle };
+        }
+
+        let backgroundPicture = 'https://picsum.photos/' + window.innerWidth.toString() + '/' + window.innerHeight.toString();
+        document.body.style.backgroundImage = "url(" + backgroundPicture + ")";
+
+        //Below three lines for changing css. is needed because sometimes so slow at rendering it doesn't fully cover otherwise.
+        document.body.style.backgroundSize = "cover"; // This will make sure it covers the entire viewport
+        document.body.style.backgroundRepeat = "no-repeat"; // Prevents repeating the image
+        document.body.style.backgroundPosition = "center center"; // Centers the background image
+
+        document.addEventListener(
+            "click",
+            function () {
+                window.location.reload(true);
+            },
+            false
+        );
+
+    </script>
+</body>
+
+</html>
