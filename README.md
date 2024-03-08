@@ -1,4 +1,4 @@
---This project made pseudobarcodes as training data, and then reconstructs the ones with scratches.
+--This project made pseudobarcodes as training data, and then tries to find them.
 
 The project is in the format:
 
@@ -10,8 +10,6 @@ multiple-barcode-reader/
 │   ├── playwright-screenshot.js
 │   ├── grayednode.js
 │   └── barcodeEdgeDetector.py
-└── mathematica/
-    └── barcodeReconstruction.nb
 
 #Installing Dependencies
 npm install playwright
