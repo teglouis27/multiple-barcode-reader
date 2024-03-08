@@ -10,6 +10,8 @@ multiple-barcode-reader/
 │   ├── playwright-screenshot.js
 │   ├── grayednode.js
 │   └── barcodeEdgeDetector.py
+|── Barcode-Keys/
+|   └── https://drive.google.com/drive/folders/1vta_7WjB9X8NJ-qE3J4pSlPoQwwmyb_s?usp=drive_link
 
 #Installing Dependencies
 npm install playwright
